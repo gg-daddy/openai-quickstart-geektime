@@ -13,10 +13,24 @@ class TranslationChain:
     def __init__(self, model_name: str = "gpt-3.5-turbo", verbose: bool = True):
         
         # 翻译任务指令始终由 System 角色承担
+        # template = (
+        #     """You are a translation expert, proficient in various languages. \n
+        #     Translates {source_language} to {target_language} in a {style} style."""
+        # )
+        
         template = (
-            """You are a translation expert, proficient in various languages. \n
-            Translates {source_language} to {target_language}."""
-        )
+        """Act as a language translator. 
+        You will receive text to translate, and your goal is to translate the text from {source_language} to {target_language} in a {style} style.
+        
+        and don’t short my text. 
+        Do not echo my prompt. 
+        Do not remind me what I asked you for. 
+        And don’t short my text .
+        do not apologize. 
+        Do not explain what and why,  just give me your best possible Output. 
+        output should only be the translated text no additional explanation and text.
+        """    
+        )        
         system_message_prompt = SystemMessagePromptTemplate.from_template(template)
 
         # 待翻译文本由 Human 角色输入
@@ -33,13 +47,14 @@ class TranslationChain:
 
         self.chain = LLMChain(llm=chat, prompt=chat_prompt_template, verbose=verbose)
 
-    def run(self, text: str, source_language: str, target_language: str) -> (str, bool):
+    def run(self, text: str, source_language: str, target_language: str, style: str) -> (str, bool):
         result = ""
         try:
             result = self.chain.run({
                 "text": text,
                 "source_language": source_language,
                 "target_language": target_language,
+                "style": style
             })
         except Exception as e:
             LOG.error(f"An error occurred during translation: {e}")
