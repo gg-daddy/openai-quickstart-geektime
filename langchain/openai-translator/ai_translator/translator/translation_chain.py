@@ -1,23 +1,37 @@
 from langchain.chat_models import ChatOpenAI
 from langchain.chains import LLMChain
+from langchain.llms import ChatGLM
 
 from langchain.prompts.chat import (
     ChatPromptTemplate,
     SystemMessagePromptTemplate,
     HumanMessagePromptTemplate,
 )
+from langchain import PromptTemplate
 
 from utils import LOG
+from abc import ABCMeta, abstractmethod
 
-class TranslationChain:
-    def __init__(self, model_name: str = "gpt-3.5-turbo", verbose: bool = True):
-        
-        # 翻译任务指令始终由 System 角色承担
-        # template = (
-        #     """You are a translation expert, proficient in various languages. \n
-        #     Translates {source_language} to {target_language} in a {style} style."""
-        # )
-        
+class TranslationChain(metaclass=ABCMeta):
+    
+    def run(self, text: str, source_language: str, target_language: str, style: str) -> (str, bool):
+        result = ""
+        try:
+            result = self.chain.run({
+                "text": text,
+                "source_language": source_language,
+                "target_language": target_language,
+                "style": style
+            })
+        except Exception as e:
+            LOG.error(f"An error occurred during translation: {e}")
+            return result, False
+
+        return result, True
+
+class OpenAITranlateChain(TranslationChain):
+    
+    def __init__(self, model_name: str = "gpt-3.5-turbo", verbose: bool = True):            
         template = (
         """Act as a language translator. 
         You will receive text to translate, and your goal is to translate the text from {source_language} to {target_language} in a {style} style.
@@ -47,17 +61,38 @@ class TranslationChain:
 
         self.chain = LLMChain(llm=chat, prompt=chat_prompt_template, verbose=verbose)
 
-    def run(self, text: str, source_language: str, target_language: str, style: str) -> (str, bool):
-        result = ""
-        try:
-            result = self.chain.run({
-                "text": text,
-                "source_language": source_language,
-                "target_language": target_language,
-                "style": style
-            })
-        except Exception as e:
-            LOG.error(f"An error occurred during translation: {e}")
-            return result, False
 
-        return result, True
+class ChatGLMTranlateChain(TranslationChain):
+    def __init__(self, model_name: str, verbose:bool):
+               
+        template = (
+        """
+            你现在是资深的多语言翻译专家， 请采用{style}的语言风格，把下面的内容，从语言{source_language}翻译到语言{target_language}：
+            {text}
+        """    
+        )        
+        tranlate_prompt = PromptTemplate(
+            input_variables=["source_language","target_language","style","text"],
+            template=template
+        )
+        
+        endpoint_url = "http://127.0.0.1:8000"
+        glm_llm = ChatGLM(
+            endpoint_url=endpoint_url,
+            max_token=80000,
+            history=[],
+            top_p=0.9,
+            model_kwargs={"sample_model_args": False},
+        )
+        self.chain = LLMChain(llm=glm_llm, prompt=tranlate_prompt, verbose=verbose)
+  
+        
+chain_factories = {
+   "gpt-3.5-turbo": OpenAITranlateChain,
+   "chatglm-6b": ChatGLMTranlateChain,
+}
+
+def create_tranlate_chain(model_name, verbose: bool = False) -> TranslationChain:
+   if model_name not in chain_factories:
+       raise ValueError("Invalid model name!")
+   return chain_factories[model_name](model_name,verbose)

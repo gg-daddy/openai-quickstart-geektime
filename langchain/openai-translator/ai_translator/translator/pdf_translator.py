@@ -1,12 +1,12 @@
 from typing import Optional
 from translator.pdf_parser import PDFParser
 from translator.writer import Writer
-from translator.translation_chain import TranslationChain
+from translator.translation_chain import create_tranlate_chain
 from utils import LOG
 
 class PDFTranslator:
     def __init__(self, model_name: str):
-        self.translate_chain = TranslationChain(model_name)
+        self.translate_chain = create_tranlate_chain(model_name)
         self.pdf_parser = PDFParser()
         self.writer = Writer()
 

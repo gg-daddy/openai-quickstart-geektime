@@ -4,12 +4,12 @@ import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 import pytest
-from .translator.translation_chain import TranslationChain
+from .translator.translation_chain import create_tranlate_chain
 
 @pytest.fixture
 def translation_instance():
     # 创建翻译实例，用于测试
-    return TranslationChain()
+    return create_tranlate_chain(model_name="chatglm-6b", verbose=True)
 
 def test_run_positive(translation_instance):
     source_language = "Chinese"
